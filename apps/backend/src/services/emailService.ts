@@ -79,7 +79,11 @@ export async function sendEmail(options: SendEmailOptions): Promise<string> {
     refresh_token: env.GOOGLE_REFRESH_TOKEN,
   });
 
-  const raw = makeRawMessage(options);
+  // Sanitize recipient email address to strip stray backslashes or special characters
+  const sanitizedTo = options.to.replace(/[\s\\"'<>{}]+$/, '').trim();
+  const cleanedOptions = { ...options, to: sanitizedTo };
+
+  const raw = makeRawMessage(cleanedOptions);
   const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
 
   const response = await gmail.users.messages.send({
@@ -87,7 +91,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<string> {
     requestBody: { raw },
   });
 
-  logger.info(`[GmailAPI] Email delivered to ${options.to} | id=${response.data.id}`);
+  logger.info(`[GmailAPI] Email delivered to ${sanitizedTo} | id=${response.data.id}`);
   return response.data.id as string;
 }
 
