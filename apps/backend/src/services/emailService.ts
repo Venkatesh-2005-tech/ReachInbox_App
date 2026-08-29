@@ -1,10 +1,8 @@
-import { Resend } from 'resend';
+import { google } from 'googleapis';
 import { prisma } from '../config/prisma';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import * as fs from 'fs';
-
-const resend = new Resend(env.RESEND_API_KEY);
 
 interface SendEmailAttachment {
   filename: string;
@@ -20,42 +18,79 @@ interface SendEmailOptions {
   attachments?: SendEmailAttachment[];
 }
 
-export async function sendEmail(options: SendEmailOptions): Promise<string> {
-  const fromAddress = env.SMTP_FROM || 'onboarding@resend.dev';
+// Helper to create a raw RFC 822 email message and base64url encode it
+function makeRawMessage(options: SendEmailOptions): string {
+  const boundary = 'foo_bar_baz';
+  const hasAttachments = options.attachments && options.attachments.length > 0;
 
-  // Map attachments for Resend if provided
-  const formattedAttachments = options.attachments?.map((att) => {
-    try {
-      const content = fs.readFileSync(att.path);
-      return {
-        filename: att.filename,
-        content,
-      };
-    } catch (err) {
-      logger.warn(`[Resend] Failed to read attachment at ${att.path}: ${(err as Error).message}`);
-      return null;
+  let emailLines = [
+    `From: ${options.from}`,
+    `To: ${options.to}`,
+    `Subject: ${options.subject}`,
+    'MIME-Version: 1.0',
+  ];
+
+  if (hasAttachments) {
+    emailLines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    emailLines.push('');
+    emailLines.push(`--${boundary}`);
+    emailLines.push('Content-Type: text/html; charset="UTF-8"');
+    emailLines.push('');
+    emailLines.push(options.body.replace(/\n/g, '<br>'));
+
+    for (const att of options.attachments!) {
+      try {
+        const fileData = fs.readFileSync(att.path);
+        const base64Data = fileData.toString('base64');
+        emailLines.push(`--${boundary}`);
+        emailLines.push(`Content-Type: ${att.contentType || 'application/octet-stream'}; name="${att.filename}"`);
+        emailLines.push('Content-Transfer-Encoding: base64');
+        emailLines.push(`Content-Disposition: attachment; filename="${att.filename}"`);
+        emailLines.push('');
+        emailLines.push(base64Data);
+      } catch (err) {
+        logger.warn(`[GmailAPI] Failed to read attachment ${att.path}: ${(err as Error).message}`);
+      }
     }
-  }).filter(Boolean);
-
-  const { data, error } = await resend.emails.send({
-    from: fromAddress,
-    to: [options.to],
-    subject: options.subject,
-    html: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${options.body.replace(/\n/g, '<br>')}</div>`,
-    attachments: formattedAttachments as any,
-  });
-
-  if (error) {
-    logger.error(`[Resend] Failed to send email to ${options.to}: ${error.message}`);
-    throw new Error(error.message);
+    emailLines.push(`--${boundary}--`);
+  } else {
+    emailLines.push('Content-Type: text/html; charset="UTF-8"');
+    emailLines.push('');
+    emailLines.push(options.body.replace(/\n/g, '<br>'));
   }
 
-  logger.info(`[Resend] Email delivered to ${options.to} | id=${data?.id}`);
-  return data?.id as string;
+  const rawMessage = emailLines.join('\r\n');
+  return Buffer.from(rawMessage)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+export async function sendEmail(options: SendEmailOptions): Promise<string> {
+  // Set up OAuth2 client using your Google credentials
+  const oAuth2Client = new google.auth.OAuth2(
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_SECRET,
+    env.GOOGLE_CALLBACK_URL
+  );
+
+  // Fetch the user's active connection or refresh tokens from your database if stored, 
+  // or fallback to environment tokens if handling system-level sends.
+  const raw = makeRawMessage(options);
+  const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
+
+  const response = await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw },
+  });
+
+  logger.info(`[GmailAPI] Email delivered to ${options.to} | id=${response.data.id}`);
+  return response.data.id as string;
 }
 
 export async function verifySmtpConnection(): Promise<void> {
-  logger.info('[Resend] Using Resend HTTP API (Connection verified)');
+  logger.info('[GmailAPI] Using Gmail HTTPS API (Connection verified)');
 }
 
 export async function getSenderEmail(senderId: string): Promise<string> {
