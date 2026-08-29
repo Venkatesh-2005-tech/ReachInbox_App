@@ -72,6 +72,9 @@ function createTransporter(): {
       host: env.SMTP_HOST,
       port,
       secure,
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 50,
       auth: {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
@@ -79,9 +82,9 @@ function createTransporter(): {
       tls: {
         rejectUnauthorized: false,
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
     });
 
     logger.info(
@@ -183,7 +186,7 @@ export async function sendEmail(
     }
   }
 
-  return info.messageId as string;
+    return info.messageId as string;
 }
 
 /**
