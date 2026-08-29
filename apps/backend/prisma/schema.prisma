@@ -38,25 +38,25 @@ model Sender {
 }
 
 model Email {
-  id             String      @id @default(cuid())
-  userId         String
-  senderId       String
-  recipient      String
-  subject        String
-  body           String
-  scheduledAt    DateTime
-  sentAt         DateTime?
-  status         EmailStatus @default(SCHEDULED)
-  bullJobId      String?     @unique
-  idempotencyKey String      @unique
-  messageId      String?
-  attempts       Int         @default(0)
-  errorMessage   String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  userId          String
+  senderId        String
+  recipient       String
+  subject         String
+  body            String
+  scheduledAt     DateTime
+  sentAt          DateTime?
+  status          EmailStatus @default(SCHEDULED)
+  bullJobId       String?     @unique
+  idempotencyKey  String      @unique
+  messageId       String?
+  attempts        Int         @default(0)
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sender      Sender           @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender      Sender            @relation(fields: [senderId], references: [id], onDelete: Cascade)
   attachments EmailAttachment[]
 
   @@index([userId])
@@ -75,11 +75,7 @@ model EmailAttachment {
   path        String
   createdAt   DateTime @default(now())
 
-  email Email @relation(
-    fields: [emailId],
-    references: [id],
-    onDelete: Cascade
-  )
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
 
   @@index([emailId])
 }
@@ -93,11 +89,7 @@ model SlackConnection {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user User @relation(
-    fields: [userId],
-    references: [id],
-    onDelete: Cascade
-  )
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum EmailStatus {
