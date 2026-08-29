@@ -10,7 +10,12 @@ export function connectSlack(req: Request, res: Response): void {
     return;
   }
 
-  const userId = (req.user as { id: string }).id;
+  const userId = (req.user as { id?: string })?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const state = Buffer.from(JSON.stringify({ userId })).toString('base64');
   const scopes = 'chat:write,channels:read';
 
@@ -40,7 +45,6 @@ export async function slackCallback(req: Request, res: Response, next: NextFunct
 
     const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf8')) as { userId: string };
 
-    // Exchange code for access token
     const tokenData = await exchangeSlackCode(code, env.SLACK_CLIENT_ID, env.SLACK_CLIENT_SECRET, env.SLACK_REDIRECT_URI);
 
     await prisma.slackConnection.upsert({
@@ -67,7 +71,11 @@ export async function slackCallback(req: Request, res: Response, next: NextFunct
 
 export async function getSlackStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req.user as { id: string }).id;
+    const userId = (req.user as { id?: string })?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const connection = await prisma.slackConnection.findUnique({
       where: { userId },
       select: { id: true, teamId: true, channelId: true, createdAt: true },
@@ -80,7 +88,11 @@ export async function getSlackStatus(req: Request, res: Response, next: NextFunc
 
 export async function disconnectSlack(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req.user as { id: string }).id;
+    const userId = (req.user as { id?: string })?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     await prisma.slackConnection.deleteMany({ where: { userId } });
     res.json({ success: true });
   } catch (err) {
