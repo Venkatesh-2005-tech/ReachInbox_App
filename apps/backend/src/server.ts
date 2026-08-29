@@ -25,6 +25,7 @@ import { verifySmtpConnection } from './services/emailService';
 
 async function bootstrap(): Promise<void> {
   const app = express();
+  app.set('trust proxy', 1);
 
   // ── Security & parsing ────────────────────────────────────────────────────
   app.use(
