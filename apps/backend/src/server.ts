@@ -43,7 +43,7 @@ async function bootstrap(): Promise<void> {
 
   // ── Session store (Redis) ─────────────────────────────────────────────────
   const redisStoreClient = createClient({
-    url: env.REDIS_URL,
+    url: process.env.REDIS_URL,
   });
   await redisStoreClient.connect().catch((e: Error) =>
     logger.warn(`Redis session store connect warning: ${e.message}`),
