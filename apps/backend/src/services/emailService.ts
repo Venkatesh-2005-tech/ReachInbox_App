@@ -68,15 +68,17 @@ function makeRawMessage(options: SendEmailOptions): string {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<string> {
-  // Set up OAuth2 client using your Google credentials
   const oAuth2Client = new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
     env.GOOGLE_CALLBACK_URL
   );
 
-  // Fetch the user's active connection or refresh tokens from your database if stored, 
-  // or fallback to environment tokens if handling system-level sends.
+  // Inject the refresh token from environment variables
+  oAuth2Client.setCredentials({
+    refresh_token: env.GOOGLE_REFRESH_TOKEN,
+  });
+
   const raw = makeRawMessage(options);
   const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
 
