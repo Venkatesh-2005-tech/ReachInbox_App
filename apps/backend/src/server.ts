@@ -98,10 +98,10 @@ async function bootstrap(): Promise<void> {
   await verifySmtpConnection(); // Warn early if SMTP is misconfigured
   startEmailWorker();
 
-  app.listen(env.PORT, () => {
-    logger.info(`🚀 ReachInbox backend running on http://localhost:${env.PORT}`);
-    logger.info(`📋 Bull Board: http://localhost:${env.PORT}/admin/queues`);
-    logger.info(`🔍 Health: http://localhost:${env.PORT}/health`);
+  app.listen(Number(env.PORT), '0.0.0.0', () => {
+    logger.info(`🚀 ReachInbox backend running on port ${env.PORT}`);
+    logger.info(`📋 Bull Board: http://0.0.0.0:${env.PORT}/admin/queues`);
+    logger.info(`🔍 Health: http://0.0.0.0:${env.PORT}/health`);
   });
 }
 
